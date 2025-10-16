@@ -37,6 +37,96 @@ Forked from: **[https://github.com/casdoor/casdoor]()**
 - **Multi-tenant**: Organization-based isolation and management
 - **SSO Integration**: Seamless integration with Casdoor for authentication
 
+### Detailed Architecture Diagram
+
+```mermaid
+flowchart TB
+    subgraph Frontend["Frontend Layer"]
+        CasdoorUI["Casdoor UI\n(React)"]
+        CasibaseUI["Casibase UI\n(React)"]
+    end
+
+    subgraph Backend["Backend Layer"]
+        subgraph Casdoor["Casdoor (Go - Port 8000)"]
+            Auth["Authentication\n- OAuth 2.0\n- OIDC\n- SAML\n- CAS"]
+            UserMgmt["User Management\n- Registration\n- Profile\n- MFA"]
+            OrgMgmt["Organization Mgmt\n- Multi-tenant\n- RBAC"]
+            TokenMgmt["Token Management\n- JWT\n- Sessions"]
+            Providers["Identity Providers\n- Social Login\n- LDAP"]
+        end
+
+        subgraph Casibase["Casibase (Go - Port 14000)"]
+            AIModels["AI Models\n- OpenAI\n- Claude\n- Local Models"]
+            KnowBase["Knowledge Base\n- Vector Search\n- Doc Management"]
+            MCPAgent["MCP/A2A\n- Agent Management\n- Orchestration"]
+            Analytics["Analytics\n- Usage\n- Performance"]
+        end
+    end
+
+    subgraph DataStores["Data Layer"]
+        PostgreSQL[("PostgreSQL\n- User Data\n- Config\n- Metadata")]
+        Redis[("Redis Cache\n- Sessions\n- Tokens")]
+        VectorDB[("Vector Store\n- Embeddings\n- Indexes")]
+        ObjectStore[("Object Storage\n- Files\n- Assets")]
+    end
+
+    subgraph External["External Services"]
+        AIProviders["AI Providers\n- OpenAI\n- Azure\n- AWS\n- etc."]
+        SocialAuth["Social Auth\n- GitHub\n- Google\n- etc."]
+        EmailSMS["Email/SMS\n- SMTP\n- Twilio"]
+    end
+
+    %% Frontend to Backend connections
+    CasdoorUI <--> |"REST APIs\nWebSocket"| Casdoor
+    CasibaseUI <--> |"REST APIs\nWebSocket"| Casibase
+
+    %% Casdoor internal connections
+    Auth <--> UserMgmt
+    UserMgmt <--> OrgMgmt
+    Auth <--> TokenMgmt
+    UserMgmt <--> Providers
+
+    %% Casibase internal connections
+    AIModels <--> KnowBase
+    KnowBase <--> MCPAgent
+    AIModels <--> Analytics
+    
+    %% Inter-service communication
+    Casibase <--> |"OIDC/OAuth\nAPI Calls"| Casdoor
+
+    %% Backend to Data Layer
+    Casdoor <--> PostgreSQL
+    Casdoor <--> Redis
+    Casdoor <--> ObjectStore
+    
+    Casibase <--> PostgreSQL
+    Casibase <--> Redis
+    Casibase <--> VectorDB
+    Casibase <--> ObjectStore
+
+    %% External Service connections
+    Casdoor <--> |"OAuth/OIDC"| SocialAuth
+    Casdoor <--> |"SMTP/API"| EmailSMS
+    Casibase <--> |"API Calls"| AIProviders
+
+    classDef frontend fill:#f9f,stroke:#333,stroke-width:2px
+    classDef backend fill:#bbf,stroke:#333,stroke-width:2px
+    classDef database fill:#dfd,stroke:#333,stroke-width:2px
+    classDef external fill:#ffd,stroke:#333,stroke-width:2px
+    
+    class CasdoorUI,CasibaseUI frontend
+    class Auth,UserMgmt,OrgMgmt,TokenMgmt,Providers,AIModels,KnowBase,MCPAgent,Analytics backend
+    class PostgreSQL,Redis,VectorDB,ObjectStore database
+    class AIProviders,SocialAuth,EmailSMS external
+```
+
+The diagram above illustrates:
+- Frontend Layer: React-based UIs for both Casdoor and Casibase
+- Backend Layer: Core services and their internal components
+- Data Layer: Persistent storage and caching
+- External Services: Third-party integrations and providers
+- Key interactions and data flows between components
+
 ### Supported AI Models
 
 #### Language Models
@@ -129,96 +219,6 @@ ASCII overview:
 - If you plan to store large model weights or binary artifacts in the repo, use Git LFS or an external artifact store.
 
 This section is intentionally high-level. Below is a detailed architecture diagram showing the components and their interactions:
-
-### Detailed Architecture Diagram
-
-```mermaid
-flowchart TB
-    subgraph Frontend["Frontend Layer"]
-        CasdoorUI["Casdoor UI\n(React)"]
-        CasibaseUI["Casibase UI\n(React)"]
-    end
-
-    subgraph Backend["Backend Layer"]
-        subgraph Casdoor["Casdoor (Go - Port 8000)"]
-            Auth["Authentication\n- OAuth 2.0\n- OIDC\n- SAML\n- CAS"]
-            UserMgmt["User Management\n- Registration\n- Profile\n- MFA"]
-            OrgMgmt["Organization Mgmt\n- Multi-tenant\n- RBAC"]
-            TokenMgmt["Token Management\n- JWT\n- Sessions"]
-            Providers["Identity Providers\n- Social Login\n- LDAP"]
-        end
-
-        subgraph Casibase["Casibase (Go - Port 14000)"]
-            AIModels["AI Models\n- OpenAI\n- Claude\n- Local Models"]
-            KnowBase["Knowledge Base\n- Vector Search\n- Doc Management"]
-            MCPAgent["MCP/A2A\n- Agent Management\n- Orchestration"]
-            Analytics["Analytics\n- Usage\n- Performance"]
-        end
-    end
-
-    subgraph DataStores["Data Layer"]
-        PostgreSQL[("PostgreSQL\n- User Data\n- Config\n- Metadata")]
-        Redis[("Redis Cache\n- Sessions\n- Tokens")]
-        VectorDB[("Vector Store\n- Embeddings\n- Indexes")]
-        ObjectStore[("Object Storage\n- Files\n- Assets")]
-    end
-
-    subgraph External["External Services"]
-        AIProviders["AI Providers\n- OpenAI\n- Azure\n- AWS\n- etc."]
-        SocialAuth["Social Auth\n- GitHub\n- Google\n- etc."]
-        EmailSMS["Email/SMS\n- SMTP\n- Twilio"]
-    end
-
-    %% Frontend to Backend connections
-    CasdoorUI <--> |"REST APIs\nWebSocket"| Casdoor
-    CasibaseUI <--> |"REST APIs\nWebSocket"| Casibase
-
-    %% Casdoor internal connections
-    Auth <--> UserMgmt
-    UserMgmt <--> OrgMgmt
-    Auth <--> TokenMgmt
-    UserMgmt <--> Providers
-
-    %% Casibase internal connections
-    AIModels <--> KnowBase
-    KnowBase <--> MCPAgent
-    AIModels <--> Analytics
-    
-    %% Inter-service communication
-    Casibase <--> |"OIDC/OAuth\nAPI Calls"| Casdoor
-
-    %% Backend to Data Layer
-    Casdoor <--> PostgreSQL
-    Casdoor <--> Redis
-    Casdoor <--> ObjectStore
-    
-    Casibase <--> PostgreSQL
-    Casibase <--> Redis
-    Casibase <--> VectorDB
-    Casibase <--> ObjectStore
-
-    %% External Service connections
-    Casdoor <--> |"OAuth/OIDC"| SocialAuth
-    Casdoor <--> |"SMTP/API"| EmailSMS
-    Casibase <--> |"API Calls"| AIProviders
-
-    classDef frontend fill:#f9f,stroke:#333,stroke-width:2px
-    classDef backend fill:#bbf,stroke:#333,stroke-width:2px
-    classDef database fill:#dfd,stroke:#333,stroke-width:2px
-    classDef external fill:#ffd,stroke:#333,stroke-width:2px
-    
-    class CasdoorUI,CasibaseUI frontend
-    class Auth,UserMgmt,OrgMgmt,TokenMgmt,Providers,AIModels,KnowBase,MCPAgent,Analytics backend
-    class PostgreSQL,Redis,VectorDB,ObjectStore database
-    class AIProviders,SocialAuth,EmailSMS external
-```
-
-The diagram above illustrates:
-- Frontend Layer: React-based UIs for both Casdoor and Casibase
-- Backend Layer: Core services and their internal components
-- Data Layer: Persistent storage and caching
-- External Services: Third-party integrations and providers
-- Key interactions and data flows between components
 
 ## 🚀 Quick Start
 
