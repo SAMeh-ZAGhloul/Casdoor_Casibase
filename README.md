@@ -67,19 +67,68 @@ Forked from: **[https://github.com/casdoor/casdoor]()**
 
 ## 🏗️ Architecture
 
-This project consists of two main applications that work together:
+This repository contains two primary applications with both backend and frontend parts. The high-level responsibilities and interactions are summarized below.
+
+### Casdoor (Identity & Access)
+
+- Backend (Go)
+   - Responsibilities: authentication (OAuth2/OIDC/SAML/CAS), user and organization management, RBAC/authorization (Casbin), token/session management, and SSO provider endpoints.
+   - Technology: Go, PostgreSQL, optional Redis for caching, Casbin for authorization.
+   - Typical port: 8000 (configurable via `conf/app.conf`).
+   - Exposes: REST APIs and OIDC/OAuth endpoints used by clients and other services (e.g., Casibase).
+
+- Frontend (React)
+   - Responsibilities: admin UI for user/org/app management, login/consent screens, developer settings and client registration.
+   - Located in: `casdoor/web` — built assets served via static files or integrated into a web server.
+
+### Casibase (AI Knowledge Base & Platform)
+
+- Backend (Go)
+   - Responsibilities: AI model integrations, embedding/vector search, knowledge management, MCP/A2A orchestration, admin APIs, and business logic.
+   - Technology: Go, PostgreSQL (or other supported DB), a vector store (local or external), optional Redis, integrations to external AI providers.
+   - Typical port: 14000 (configurable via `conf/app.conf`).
+   - Integrates with Casdoor for authentication (OIDC/OAuth) and relies on Casdoor-issued client credentials for SSO flows.
+
+- Frontend (React)
+   - Responsibilities: admin dashboard, content/model management UIs, user-facing pages for chat/knowledge access.
+   - Located in: `casibase/web` — built with Node/yarn and served as static assets or via a web server.
+
+### Data stores & shared services
+
+- Primary relational DB: PostgreSQL (separate databases recommended for Casdoor and Casibase, though single DB with schemas is possible).
+- Vector store: embeddings and vector indexes (can be local, FAISS, Milvus, or hosted vector db).
+- Redis: optional for caching, sessions, queues.
+- Object storage: S3-compatible storage or local filesystem for uploaded files and static assets.
+
+### Communication & SSO flow (high-level)
+
+1. Casibase redirects users to Casdoor for authentication (OIDC/OAuth authorization code flow).
+2. Casdoor authenticates the user, issues tokens (ID token / access token), and redirects back to Casibase with a code.
+3. Casibase exchanges the code for tokens, validates the ID token, and establishes an authenticated session for the user.
+4. Casibase uses Casdoor-provided user and organization data for authorization and multi-tenant scoping.
+
+ASCII overview:
 
 ```
-┌─────────────────┐    ┌─────────────────┐
-│    Casdoor      │    │    Casibase     │
-│   (Port 8000)   │◄──►│  (Port 14000)   │
-│                 │    │                 │
-│ • Authentication│    │ • AI Models     │
-│ • Authorization │    │ • Knowledge Base│
-│ • User Mgmt     │    │ • Vector Search │
-│ • SSO Provider  │    │ • Admin UI      │
-└─────────────────┘    └─────────────────┘
+[Browser] <---> [Casibase Frontend (web)]
+      |                     |
+      |  (redirect to)      |  (calls APIs)
+      v                     v
+ [Casdoor] <--- OIDC/OAuth ---> [Casibase Backend]
+    (Auth provider)             (Uses tokens, calls APIs)
+         |                            |
+         |                            +--> Vector store / AI providers
+         +--> PostgreSQL, Redis, S3
 ```
+
+### Deployment notes
+
+- Run backends as services (containers or systemd) and serve built frontend assets from a CDN or a web server.
+- Use environment-specific configs for ports, database connection strings and Casdoor client credentials (do not commit secrets).
+- For production: enable TLS for all public endpoints, protect the Casdoor admin console, and consider using a reverse proxy / ingress controller.
+- If you plan to store large model weights or binary artifacts in the repo, use Git LFS or an external artifact store.
+
+This section is intentionally high-level. If you'd like, I can add a dedicated diagram (Mermaid) or a per-service deployment example (docker-compose and Helm snippets).
 
 ## 🚀 Quick Start
 
